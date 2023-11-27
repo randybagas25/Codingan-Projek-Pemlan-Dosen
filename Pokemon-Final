@@ -71,6 +71,7 @@ class BattleSimulator:
 
         if self.opponent_pokemon.is_knocked_out():
             log_entry += f"\n{self.opponent_pokemon.name} is KO'd, {self.player_pokemon.name} WINS"
+            
 
         self.player_pokemon.battle_log.append(log_entry)
 
@@ -96,6 +97,7 @@ class BattleLogWindow:
         self.root = root
         self.player_pokemon = player_pokemon
         self.simulator = simulator
+        self.game_over = False
 
         root.title("Pokemon Battle Simulator")
 
@@ -111,7 +113,7 @@ class BattleLogWindow:
         image_frame = ttk.Frame(root)
         image_frame.grid(row=1, column=0, columnspan=3, pady=10)
 
-        # Load gambar-gambar Pokemon untuk player dan opponent
+        
         self.player_image_label = tk.Label(image_frame, image=self.load_pokemon_image(player_pokemon.name.lower()))
         self.player_image_label.grid(row=0, column=0, padx=5)
 
@@ -127,7 +129,7 @@ class BattleLogWindow:
         frame = ttk.Frame(log_frame)
         frame.grid(row=1, column=0, pady=10)
 
-        # Tambahkan label untuk menampilkan gambar Pokemon
+        
         self.player_image = self.load_pokemon_image(player_pokemon.name.lower())
         player_image_label = tk.Label(image_frame, image=self.player_image)
         player_image_label.grid(row=0, column=0, padx=5)
@@ -136,7 +138,7 @@ class BattleLogWindow:
         opponent_image_label = tk.Label(image_frame, image=self.opponent_image)
         opponent_image_label.grid(row=0, column=1, padx=5)
 
-        # Modified button style to create a rounded rectangle illusion
+        
         s = ttk.Style()
         s.configure('Rounded.TButton', relief="flat", background=root.cget('bg'))
 
@@ -149,7 +151,7 @@ class BattleLogWindow:
         self.skill_var = tk.StringVar(frame)
         self.skill_var.set(list(player_pokemon.skills.keys())[0])
 
-        # Create a themed Combobox for skills with rounded rectangle style
+        
         self.skill_menu = ttk.Combobox(frame, textvariable=self.skill_var, style='Rounded.TCombobox')
         self.skill_menu.grid(row=0, column=2, padx=5)
 
@@ -157,35 +159,55 @@ class BattleLogWindow:
         log_frame.columnconfigure(0, weight=1)
         frame.columnconfigure(1, weight=1)
 
-        # Display initial HP values
+        
         self.update_battle_log()
         self.load_pokemon_images()
 
     def update_battle_log(self):
-        # Update HP labels
+        
         self.player_hp_label.config(text=f"{self.player_pokemon.name} HP: {self.player_pokemon.hp}")
         self.opponent_hp_label.config(text=f"{self.simulator.opponent_pokemon.name} HP: {self.simulator.opponent_pokemon.hp}")
-
-        # Clear the existing log before updating
+        if self.player_pokemon.is_knocked_out() or self.simulator.opponent_pokemon.is_knocked_out():
+            self.game_over = True
+            self.text_widget.insert(tk.END, "Game Over\n")
+        
         self.text_widget.delete(1.0, tk.END)
 
-        # Update the log with new entries
+        
         for entry in self.player_pokemon.battle_log:
             self.text_widget.insert(tk.END, entry + "\n")
 
-        # Scroll to the bottom to show the latest entries
+        
         self.text_widget.yview(tk.END)
 
     def player_attack(self):
-        selected_skill = self.skill_var.get()
-        self.simulator.player_attack(selected_skill)
-        self.update_battle_log()
+        if not self.game_over:
+            selected_skill = self.skill_var.get()
+            self.simulator.player_attack(selected_skill)
+            self.update_battle_log()
+
+    def opponent_attack(self):
+        if not self.game_over:
+            if not self.player_pokemon.is_knocked_out():
+                opponent_skills = list(self.opponent_pokemon.skills.keys())
+                selected_skill = choice(opponent_skills)
+
+                damage_dealt = self.opponent_pokemon.attack(self.player_pokemon, selected_skill)
+                log_entry = f"{self.opponent_pokemon.name} using {selected_skill}, dealing damage to {self.player_pokemon.name}, Damage: {damage_dealt}"
+
+                if self.player_pokemon.is_knocked_out():
+                    log_entry += f"\n{self.player_pokemon.name} is KO'd, {self.opponent_pokemon.name} WINS"
+                    self.game_over = True
+
+                self.opponent_pokemon.battle_log.append(log_entry)
+                self.player_pokemon.battle_log.append(log_entry)
+                self.update_battle_log()
 
     def load_pokemon_images(self):
         self.player_image_label['image'] = self.load_pokemon_image(self.player_pokemon.name.lower())
         self.opponent_image_label['image'] = self.load_pokemon_image(self.simulator.opponent_pokemon.name.lower())
 
-        # Set the skills for the player's Pokemon in the skill menu
+        
         skills = list(self.player_pokemon.skills.keys())
         self.skill_var.set(skills[0])
         self.skill_menu['values'] = skills
@@ -227,6 +249,7 @@ def choose_pokemon():
         battle_root.geometry("500x400")
         BattleLogWindow(battle_root, player_pokemon, simulator)
 
+
     ttk.Label(root, text="Choose Your Pokemon:").grid(row=1, column=0, padx=10, pady=5)  # Baris 1
     player_var = tk.StringVar(root)
     player_var.set(pokemon_options[0]["name"])
@@ -245,7 +268,7 @@ def choose_pokemon():
     ))
     start_button.grid(row=3, column=0, columnspan=2, pady=10)
 
-    # Create a themed style for the Combobox
+    
     s = ttk.Style()
     s.configure('Rounded.TCombobox', relief="flat", background=root.cget('bg'))
 
